@@ -19,7 +19,7 @@ jobs:
           pr_data=$(gh api -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
 
           # Extract ref from the API response
-          pr_ref=$(echo "$pr_data" | jq -r '.head.ref')
+          pr_ref=$(echo "$pr_data" | jq -r '.base.ref')
           echo "::set-output name=pr_ref::$pr_ref"
           echo "PR Ref: $pr_ref"
         env:
