@@ -9,13 +9,26 @@ on:
 
 jobs:
   check-for-release-comment:
+    if: github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
       # Step 1: Checkout the PR branch
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
+      - name: Fetch PR information
+        id: pr-info
+        run: |
+          gh api \
+          -H "Accept: application/vnd.github+json" \
+          --hostname github.com \
+          /repos/frecherenkel60/test-action/pulls/${{ github.event.issue.number }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout PR Branch
+        uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.issue.pull_request.url }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ fromJson(steps.pr-info.outputs.data).head.repo.full_name }}
+          ref: ${{ fromJson(steps.pr-info.outputs.data).head.ref }}
 
       - name: Debug PR title
         run: |
