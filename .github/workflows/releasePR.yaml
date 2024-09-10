@@ -1,0 +1,24 @@
+name: "Perform Release Listener"
+
+on:
+  issue_comment:
+    types: created
+
+jobs:
+  listen-for-release-comment:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.comment.body == '/perform-release' }}
+    steps:
+      - name: Trigger PR Blocker to Unblock the PR
+        run: |
+          pr_head_ref=$(gh pr view ${{ github.event.issue.number }} --json headRefName -q .headRefName)
+
+          gh workflow run pr-blocker.yml \
+            --ref $pr_head_ref \
+            --field unblock=true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Perform release
+        run: |
+          echo "I am free to do what I want!"
