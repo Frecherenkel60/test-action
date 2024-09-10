@@ -14,6 +14,8 @@ on:
 jobs:
   Audit-Pull-Request:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
 
     steps:
       - uses: actions/github-script@v6
@@ -50,7 +52,7 @@ jobs:
             const latestSha = prData.data.head.sha;
             console.log(`Latest SHA: ${latestSha}`);
 
-            const checkRuns = github.rest.checks.listForRef({
+            const checkRuns = await github.rest.checks.listForRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: latestSha
