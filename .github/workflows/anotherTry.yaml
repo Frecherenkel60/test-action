@@ -1,0 +1,39 @@
+name: Github PR Audit
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+  issue_comment:
+    types:
+      - created
+      - edited
+
+jobs:
+  Audit-Pull-Request:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            const requiredComment = "/perform-release";
+            let commentFound = false;
+
+            if (context.payload.pull_request) {
+              throw new Error(`Merge this Pull Request with \`/perform-release\`!`);
+            } else if (context.payload.issue) {
+              // This is triggered by an issue comment event
+              const comment = context.payload.comment.body;
+              if (comment.trim() === requiredComment) {
+                commentFound = true;
+              }
+            }
+
+            if (!commentFound) {
+              throw new Error(`No Release Comment found!`);
+            } else {
+              console.log("Release comment found, proceeding...");
+            }
