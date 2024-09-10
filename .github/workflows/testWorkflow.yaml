@@ -11,6 +11,8 @@ jobs:
   check-for-release-comment:
     if: github.event.issue.pull_request
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
     steps:
       # Step 1: Checkout the PR branch
       - name: Fetch PR information
@@ -34,7 +36,7 @@ jobs:
             -f 'head_sha=${{ steps.pr-info.outputs.head_sha }}' \
             -f 'status=in_progress' \
             -f 'output[title]=Check for Release Comment' \
-            -f 'output[text]=Looking for release comment...'
+            -f 'output[summary]=Looking for release comment...'
 
       - name: Checkout PR Branch using Head SHA
         uses: actions/checkout@v2
@@ -53,7 +55,7 @@ jobs:
             -f 'status=completed' \
             -f 'conclusion=failure' \
             -f 'output[title]=Check for Release Comment' \
-            -f 'output[text]=Blocking PR merge since no valid release comment was found.'
+            -f 'output[summary]=Blocking PR merge since no valid release comment was found.'
           exit 1
 
       # Step 2: Detect /perform-release comment and perform the release action
@@ -69,5 +71,5 @@ jobs:
               -f 'status=completed' \
               -f 'conclusion=failure' \
               -f 'output[title]=Check for Release Comment' \
-              -f 'output[text]=Release approval comment detected. Performing release action...'
+              -f 'output[summary]=Release approval comment detected. Performing release action...'
           exit 0
