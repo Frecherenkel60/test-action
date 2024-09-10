@@ -19,23 +19,22 @@ jobs:
           pr_data=$(gh api -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
 
           # Extract ref from the API response
-          pr_ref=$(echo "$pr_data" | jq -r '.base.ref')
-          echo "::set-output name=pr_ref::$pr_ref"
-          echo "PR Ref: $pr_ref"
+          head_sha=$(echo "$pr_data" | jq -r '.head.sha')
+          echo "::set-output name=head_sha::$head_sha"
+          echo "Head SHA: $head_sha"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout PR Branch
+      - name: Checkout PR Branch using Head SHA
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ steps.pr-info.outputs.pr_ref }}
+          ref: ${{ steps.pr-info.outputs.head_sha }}
 
-      - name: Block PR 2
+      - name: Check for valid release comment
         if: ${{ !startsWith(github.event.issue.title, 'Release to') || github.event.comment.body != '/perform-release' }}
         run: |
-          echo "Blocking PR merge 2."
-          exit 1 # Block the merge by failing the check
+          echo "Blocking PR merge since no valid release comment was found."
+          exit 1
 
       # Step 2: Detect /perform-release comment and perform the release action
       - name: Perform release action
