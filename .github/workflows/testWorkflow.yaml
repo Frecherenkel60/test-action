@@ -15,7 +15,7 @@ jobs:
     steps:
       # Step 1: Block unless PR title follows 'Release to' convention or /perform-release comment is made
       - name: Block PR if it is not a release comment on a release pull request
-        if: ${{ startsWith(github.event.pull_request.title, 'Release to') == false || github.event_name == 'pull_request' || github.event.comment.body != '/perform-release' }}
+        if: ${{ github.event_name == 'pull_request' || !startsWith(github.event.pull_request.title, 'Release to') || github.event.comment.body != '/perform-release' }}
         run: |
           echo "Blocking PR merge. Either the PR title does not match the convention or no release comment."
           exit 1  # Block the merge by failing the check
@@ -25,5 +25,6 @@ jobs:
         if: ${{ github.event.comment.body == '/perform-release' }}
         run: |
           echo "Release approval comment detected. Performing release action..."
+          exit 0
           # Add your release logic here
           # Example: Run a script, trigger deployment, etc.
