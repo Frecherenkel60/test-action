@@ -14,9 +14,8 @@ jobs:
       # Step 1: Checkout the PR branch
       - name: Checkout PR branch
         uses: actions/checkout@v4
-      - run: gh pr checkout ${{ github.event.issue.number }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          ref: ${{ github.event.issue.pull_request.url }}
 
       - name: Debug PR title
         run: |
