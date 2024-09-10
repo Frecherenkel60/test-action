@@ -9,14 +9,16 @@ on:
 
 jobs:
   check-for-release-comment:
-    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Debug info
+        run: |
+          echo "HEAD-REF: ${{ github.head_ref }} - BASE-REF: ${{ github.base_ref }}"
       # Step 1: Checkout the PR branch
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }} # Checkout the PR branch
+          ref: ${{ github.base_ref }} # Checkout the PR branch
 
       - name: Debug PR title
         run: |
