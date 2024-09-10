@@ -16,10 +16,12 @@ jobs:
       - name: Fetch PR information
         id: pr-info
         run: |
-          gh api \
-          -H "Accept: application/vnd.github+json" \
-          --hostname github.com \
-          /repos/frecherenkel60/test-action/pulls/${{ github.event.issue.number }}
+          pr_data=$(gh api -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
+
+          # Extract ref from the API response
+          pr_ref=$(echo "$pr_data" | jq -r '.head.ref')
+          echo "::set-output name=pr_ref::$pr_ref"
+          echo "PR Ref: $pr_ref"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -27,24 +29,13 @@ jobs:
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ fromJson(steps.pr-info.outputs.data).head.repo.full_name }}
-          ref: ${{ fromJson(steps.pr-info.outputs.data).head.ref }}
-
-      - name: Debug PR title
-        run: |
-          echo "PR Title: ${{ github.event.issue.title }}"
+          ref: ${{ steps.pr-info.outputs.pr_ref }}
 
       - name: Block PR 2
-        if: ${{ !startsWith(github.event.issue.title, 'Release to') }}
+        if: ${{ !startsWith(github.event.issue.title, 'Release to') || github.event.comment.body != '/perform-release' }}
         run: |
           echo "Blocking PR merge 2."
-          exit 1  # Block the merge by failing the check
-
-      - name: Block PR if it is not a release comment on a release pull request
-        if: ${{ github.event.comment.body != '/perform-release' }}
-        run: |
-          echo "Blocking PR merge 3."
-          exit 1
+          exit 1 # Block the merge by failing the check
 
       # Step 2: Detect /perform-release comment and perform the release action
       - name: Perform release action
@@ -52,5 +43,3 @@ jobs:
         run: |
           echo "Release approval comment detected. Performing release action..."
           exit 0
-          # Add your release logic here
-          # Example: Run a script, trigger deployment, etc.
