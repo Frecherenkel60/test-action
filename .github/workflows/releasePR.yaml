@@ -11,6 +11,7 @@ jobs:
     steps:
       - name: Trigger PR Blocker to Unblock the PR
         run: |
+          gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
           pr_head_ref=$(gh pr view ${{ github.event.issue.number }} --json headRefName -q .headRefName)
 
           gh workflow run pr-blocker.yml \
