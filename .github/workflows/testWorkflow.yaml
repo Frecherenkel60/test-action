@@ -6,19 +6,32 @@ env:
 on:
   issue_comment:
     types: [created]
-  pull_request:
-    types: [opened]
 
 jobs:
-  check-release-comment:
+  check-for-release-comment:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Block unless PR title follows 'Release to' convention or /perform-release comment is made
-      - name: Block PR if it is not a release comment on a release pull request
-        if: ${{ github.event_name == 'pull_request' || !startsWith(github.event.pull_request.title, 'Release to') || github.event.comment.body != '/perform-release' }}
+      # Step 1: Checkout the PR branch
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }} # Checkout the PR branch
+
+      - name: Debug PR title
         run: |
-          echo "Blocking PR merge. Either the PR title does not match the convention or no release comment."
+          echo "PR Title: ${{ github.event.issue.title }}"
+
+      - name: Block PR 2
+        if: ${{ !startsWith(github.event.issue.title, 'Release to') }}
+        run: |
+          echo "Blocking PR merge 2."
           exit 1  # Block the merge by failing the check
+
+      - name: Block PR if it is not a release comment on a release pull request
+        if: ${{ github.event.comment.body != '/perform-release' }}
+        run: |
+          echo "Blocking PR merge 3."
+          exit 1
 
       # Step 2: Detect /perform-release comment and perform the release action
       - name: Perform release action
