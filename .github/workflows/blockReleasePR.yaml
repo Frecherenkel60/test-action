@@ -1,27 +1,14 @@
-name: "PR Blocker"
+name: "Block Release PR"
 
 on:
   pull_request:
     types: [opened, synchronize]
-
-  workflow_call:
-    inputs:
-      unblock:
-        type: boolean
-        required: true
 
 jobs:
   block-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Block PR (Failing status check)
-        if: ${{ github.event_name == 'pull_request' || inputs.unblock == false }}
         run: |
           echo "This PR is blocked. Perform the release to unblock."
           exit 1  # Fail to block the PR
-
-      - name: Unblock PR (Passing status check)
-        if: ${{ inputs.unblock == true }}
-        run: |
-          echo "This PR is now unblocked."
-          exit 0  # Success to unblock the PR

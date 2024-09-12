@@ -1,4 +1,4 @@
-name: "Perform Release Listener"
+name: "Perform Release"
 
 on:
   issue_comment:
@@ -9,16 +9,56 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.comment.body == '/perform-release' }}
     steps:
-      - name: Trigger PR Blocker to Unblock the PR
-        run: |
-          gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
-          pr_head_ref=$(gh pr view ${{ github.event.issue.number }} --json headRefName -q .headRefName)
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            const requiredComment = "/perform-release";
+            const comment = context.payload.comment.body;
 
-          gh workflow call pr-blocker.yml \
-            --ref $pr_head_ref \
-            --field unblock=true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            if (comment.trim() !== requiredComment) {
+              throw new Error(`No Release Comment found!`);
+            }
+
+            // We need to fetch the original check and set it to completed
+            console.log("Release comment found, proceeding...");
+
+            // Fetch the latest SHA from the pull request
+            const prNumber = context.payload.issue.number;
+            const prData = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const latestSha = prData.data.head.sha;
+            console.log(`Latest SHA: ${latestSha}`);
+
+            const checkRuns = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: latestSha
+            });
+
+            const blockerCheckRun = checkRuns.data.check_runs.find(
+              run => run.name === "block-pr"
+            );
+
+            if (!blockerCheckRun) {
+              throw new Error('block-pr check run not found!');
+            }
+
+            console.log(`Found Audit-Pull-Request check run ID: ${blockerCheckRun.id}`);
+
+            // Mark the check run as completed and successful
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: blockerCheckRun.id,
+              status: 'completed',
+              conclusion: 'success'
+            });
+
+            console.log("Initial check marked as completed and successful.");
 
       - name: Perform release
         run: |
