@@ -1,0 +1,33 @@
+name: "Block Release PR"
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  block-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            This is a multi-line test comment
+            - With GitHub **Markdown** :sparkles:
+            - Created by [create-or-update-comment][1]
+
+            ### PR Blocked
+            This Release PR is blocked until the following checkbox is ticked:
+
+            - [ ] Check this box to perform the release.
+
+            [1]: https://github.com/peter-evans/create-or-update-comment
+          reactions: "+1"
+
+      - name: Block PR (Failing status check)
+        run: |
+          echo "This PR is blocked. Perform the release to unblock."
+          exit 1  # Fail to block the PR

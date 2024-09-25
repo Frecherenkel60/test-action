@@ -1,0 +1,66 @@
+name: "Perform Release on Checkbox Tick"
+
+on:
+  issue_comment:
+    types: edited
+
+jobs:
+  listen-for-release-comment:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    if: contains('github-actions[bot]', github.event.comment.user.name)
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment.body;
+            const checkboxPattern = /(- \[x\] Check this box to perform the release.)/
+
+            // Ensure the comment contains a checked box
+            if (!checkboxPattern.test(comment)) {
+              throw new Error("Checkbox for release not ticked. Aborting!");
+            }
+
+            console.log("Checkbox ticked, proceeding with release...");
+
+            // Fetch the pull request associated with this comment
+            const prNumber = context.payload.issue.number;
+            const prData = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            // Extract the latest SHA (commit hash) from the pull request
+            const latestSha = prData.data.head.sha;
+
+            // Get the check runs for the PR's latest commit
+            const checkRunsResponse = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: latestSha
+            });
+
+            // Find the "block-pr" check run, which we need to unblock
+            const blockerCheckRun = checkRunsResponse.data.check_runs.find(
+              run => run.name === "block-pr"
+            );
+
+            if (!blockerCheckRun) {
+              throw new Error("block-pr check run not found!");
+            }
+
+            // Update the check run to mark it as successful, unblocking the PR
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: blockerCheckRun.id,
+              status: 'completed',
+              conclusion: 'success'
+            });
+
+            console.log("block-pr check marked as completed and successful.");
+
+      - name: Perform release
+        run: echo "Release initiated, PR is unblocked!"

@@ -1,0 +1,81 @@
+name: Github PR Audit
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+  issue_comment:
+    types:
+      - created
+      - edited
+
+jobs:
+  Audit-Pull-Request:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            const requiredComment = "/perform-release";
+            let commentFound = false;
+
+            if (context.payload.pull_request) {
+              throw new Error(`Merge this Pull Request with \`/perform-release\`!`);
+            } else if (context.payload.issue) {
+              // This is triggered by an issue comment event
+              const comment = context.payload.comment.body;
+              if (comment.trim() === requiredComment) {
+                commentFound = true;
+              }
+            }
+
+            if (!commentFound) {
+              throw new Error(`No Release Comment found!`);
+            }
+
+            // We need to fetch the original check and set it to completed
+            console.log("Release comment found, proceeding...");
+
+            // Fetch the latest SHA from the pull request
+            const prNumber = context.payload.issue.number;
+            const prData = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const latestSha = prData.data.head.sha;
+            console.log(`Latest SHA: ${latestSha}`);
+
+            const checkRuns = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: latestSha
+            });
+
+            // Find the check run with the name 'Audit-Pull-Request'
+            const auditCheckRun = checkRuns.data.check_runs.find(
+              run => run.name === "Audit-Pull-Request"
+            );
+
+            if (!auditCheckRun) {
+              throw new Error('Audit-Pull-Request check run not found!');
+            }
+
+            console.log(`Found Audit-Pull-Request check run ID: ${auditCheckRun.id}`);
+
+            // Mark the check run as completed and successful
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: auditCheckRun.id,
+              status: 'completed',
+              conclusion: 'success'
+            });
+
+            console.log("Audit-Pull-Request check marked as completed and successful.");
