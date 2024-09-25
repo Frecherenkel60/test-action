@@ -1,29 +1,30 @@
-name: "Perform Release"
+name: "Perform Release on Checkbox Tick"
 
 on:
   issue_comment:
-    types: created
+    types: edited
 
 jobs:
   listen-for-release-comment:
     runs-on: ubuntu-latest
     permissions:
       checks: write
+    if: contains('github-actions[bot]', github.event.comment.user.name)
     steps:
-      - uses: actions/github-script@v6
+      - uses: actions/github-script@v7
         with:
           script: |
-            const requiredComment = "/perform-release";
             const comment = context.payload.comment.body;
+            const checkboxPattern = /(- \[x\] Check this box to perform the release.)/
 
-            if (comment.trim() !== requiredComment) {
-              throw new Error(`No Release Comment found!`);
+            // Ensure the comment contains a checked box
+            if (!checkboxPattern.test(comment)) {
+              throw new Error("Checkbox for release not ticked. Aborting!");
             }
 
-            // We need to fetch the original check and set it to completed
-            console.log("Release comment found, proceeding...");
+            console.log("Checkbox ticked, proceeding with release...");
 
-            // Fetch the latest SHA from the pull request
+            // Fetch the pull request associated with this comment
             const prNumber = context.payload.issue.number;
             const prData = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -31,26 +32,26 @@ jobs:
               pull_number: prNumber
             });
 
+            // Extract the latest SHA (commit hash) from the pull request
             const latestSha = prData.data.head.sha;
-            console.log(`Latest SHA: ${latestSha}`);
 
-            const checkRuns = await github.rest.checks.listForRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: latestSha
+            // Get the check runs for the PR's latest commit
+            const checkRunsResponse = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: latestSha
             });
 
-            const blockerCheckRun = checkRuns.data.check_runs.find(
+            // Find the "block-pr" check run, which we need to unblock
+            const blockerCheckRun = checkRunsResponse.data.check_runs.find(
               run => run.name === "block-pr"
             );
 
             if (!blockerCheckRun) {
-              throw new Error('block-pr check run not found!');
+              throw new Error("block-pr check run not found!");
             }
 
-            console.log(`Found Audit-Pull-Request check run ID: ${blockerCheckRun.id}`);
-
-            // Mark the check run as completed and successful
+            // Update the check run to mark it as successful, unblocking the PR
             await github.rest.checks.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -59,8 +60,7 @@ jobs:
               conclusion: 'success'
             });
 
-            console.log("Initial check marked as completed and successful.");
+            console.log("block-pr check marked as completed and successful.");
 
       - name: Perform release
-        run: |
-          echo "I am free to do what I want!"
+        run: echo "Release initiated, PR is unblocked!"
