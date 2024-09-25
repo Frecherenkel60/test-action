@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       checks: write
-    if: contains('github-actions[bot]', github.event.comment.user.name)
+    if: contains('github-actions[bot]', github.event.comment.user.login)
     steps:
       - uses: actions/github-script@v7
         with:
