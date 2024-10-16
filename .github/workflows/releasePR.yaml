@@ -15,7 +15,7 @@ jobs:
         with:
           script: |
             const comment = context.payload.comment.body;
-            const checkboxPattern = /(- \[x\] Check this box to perform the release.)/
+            const checkboxPattern = /(- \[x\] \*\*Check this box to perform the release\.\*\*)/;
 
             // Ensure the comment contains a checked box
             if (!checkboxPattern.test(comment)) {
