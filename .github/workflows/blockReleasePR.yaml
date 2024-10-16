@@ -2,7 +2,8 @@ name: "Block Release PR"
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: opened
+    branches: release-**
 
 jobs:
   block-pr:
@@ -26,8 +27,3 @@ jobs:
 
             [1]: https://github.com/peter-evans/create-or-update-comment
           reactions: "+1"
-
-      - name: Block PR (Failing status check)
-        run: |
-          echo "This PR is blocked. Perform the release to unblock."
-          exit 1  # Fail to block the PR
