@@ -32,12 +32,12 @@ jobs:
               throw new Error(`No PR found with title "Release to ${inputs.environment}"`);
             }
 
-            return releasePR.number;
+            return releasePR.number.toString();
 
       - name: Post release trigger comment
         uses: peter-evans/create-or-update-comment@v4
         with:
-          issue-number: ${{ steps.find-pr.outputs.result.prNumber }}
+          issue-number: ${{ steps.find-pr.outputs.result }}
           body: |
             🚀 **Ready for Deployment?** 🚀
 
