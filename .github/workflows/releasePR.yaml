@@ -8,14 +8,15 @@ jobs:
   listen-for-release-comment:
     runs-on: ubuntu-latest
     permissions:
-      checks: write
-    if: contains('github-actions[bot]', github.event.comment.user.name)
+      pull-requests: write
+      contents: write
+    if: contains('github-actions[bot]', github.event.comment.user.login)
     steps:
       - uses: actions/github-script@v7
         with:
           script: |
             const comment = context.payload.comment.body;
-            const checkboxPattern = /(- \[x\] Check this box to perform the release.)/
+            const checkboxPattern = /(- \[x\] \*\*Check this box to perform the release\.\*\*)/;
 
             // Ensure the comment contains a checked box
             if (!checkboxPattern.test(comment)) {
@@ -24,43 +25,56 @@ jobs:
 
             console.log("Checkbox ticked, proceeding with release...");
 
-            // Fetch the pull request associated with this comment
-            const prNumber = context.payload.issue.number;
-            const prData = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
-            });
+      - name: Checkout repository
+        uses: actions/checkout@v4 # This checks out the repository
 
-            // Extract the latest SHA (commit hash) from the pull request
-            const latestSha = prData.data.head.sha;
+      - name: Authenticate to gh cli
+        run: gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
 
-            // Get the check runs for the PR's latest commit
-            const checkRunsResponse = await github.rest.checks.listForRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: latestSha
-            });
-
-            // Find the "block-pr" check run, which we need to unblock
-            const blockerCheckRun = checkRunsResponse.data.check_runs.find(
-              run => run.name === "block-pr"
-            );
-
-            if (!blockerCheckRun) {
-              throw new Error("block-pr check run not found!");
-            }
-
-            // Update the check run to mark it as successful, unblocking the PR
-            await github.rest.checks.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              check_run_id: blockerCheckRun.id,
-              status: 'completed',
-              conclusion: 'success'
-            });
-
-            console.log("block-pr check marked as completed and successful.");
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Perform release
-        run: echo "Release initiated, PR is unblocked!"
+        run: |
+          echo "Release initiated!"
+          gh pr merge ${{ github.event.issue.number }} --squash
+
+      - name: Untick comment
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.issue.number;
+            const commentId = context.payload.comment.id;
+            const originalComment = context.payload.comment.body;
+
+            // Replace [x] with [ ]
+            const updatedComment = originalComment.replace('- [x]', '- [ ]');
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: updatedComment
+            });
+
+      - name: Update comment with success message
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.issue.number;
+            const commentId = context.payload.comment.id;
+            const originalComment = context.payload.comment.body;
+
+            // Create the success message
+            const successMessage = `🎉 **Hooray!** The release has been successfully deployed! 🚀\n\nThank you for your contribution! If you need anything else, feel free to ask.`;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: successMessage
+            });
