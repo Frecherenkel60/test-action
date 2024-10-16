@@ -1,29 +1,48 @@
 name: "Block Release PR"
 
 on:
-  pull_request:
-    types: opened
-    branches: release-**
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options:
+          - release-env1
+          - release-env2
 
 jobs:
-  block-pr:
+  write-release-trigger:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
-      - name: Create comment
+      - name: Fetch latest PR with title "Release to ${{ inputs.environment }}"
+        id: find-pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const response = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 1,
+            });
+
+            const releasePR = response.data.find(pr => pr.title === `Release to ${{ inputs.environment }}`);
+            if (!releasePR) {
+              throw new Error(`No PR found with title "Release to ${inputs.environment}"`);
+            }
+
+            return { prNumber: releasePR.number };
+
+      - name: Post release trigger comment
         uses: peter-evans/create-or-update-comment@v4
         with:
-          issue-number: ${{ github.event.pull_request.number }}
+          issue-number: ${{ steps.find-pr.outputs.prNumber }}
           body: |
-            This is a multi-line test comment
-            - With GitHub **Markdown** :sparkles:
-            - Created by [create-or-update-comment][1]
+            🚀 **Ready for Deployment?** 🚀
 
-            ### PR Blocked
-            This Release PR is blocked until the following checkbox is ticked:
+            Please review all changes before proceeding with the release.
+            To trigger the release, simply:
 
-            - [ ] Check this box to perform the release.
+            - [ ] **Check this box to perform the release.**
 
-            [1]: https://github.com/peter-evans/create-or-update-comment
-          reactions: "+1"
+            Once checked, our automated process will handle the deployment!
