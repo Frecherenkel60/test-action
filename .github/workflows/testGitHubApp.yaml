@@ -11,7 +11,7 @@ on:
 
 jobs:
   merge-test:
-    name: Test with${{ inputs.use_github_app  && '' || 'out' }}
+    name: Test with${{ inputs.use_github_app  && '' || 'out' }} app token
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -51,11 +51,10 @@ jobs:
           HEAD_REF=$(gh pr view ${{ inputs.pr_number }} --json 'headRefName' | jq -r '.headRefName')
 
           git checkout $BASE_REF
-          if git merge origin/$HEAD_REF --ff-only
+          if git merge origin/$HEAD_REF --ff-only && git push
           then
-            git push
-            gh pr comment ${{ inputs.pr_number }} --body '🚀 Success! Fast forwarded `$BASE_REF` to `$HEAD_REF`'
+            gh pr comment ${{ inputs.pr_number }} --body '🚀 Success! Fast forwarded ` $BASE_REF ` to ` $HEAD_REF `'
           else
-            gh pr comment ${{ inputs.pr_number }} --body '😬 Failed! Cannot fast forward `$BASE_REF` to `$HEAD_REF`'
+            gh pr comment ${{ inputs.pr_number }} --body '😬 Failed! Cannot fast forward `$BASE_REF` to \`$HEAD_REF\`'
             exit 1
           fi
