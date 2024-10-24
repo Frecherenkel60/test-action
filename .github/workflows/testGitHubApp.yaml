@@ -1,0 +1,61 @@
+name: "Test GitHub Apps"
+on:
+  workflow_dispatch:
+    inputs:
+      use_github_app:
+        type: boolean
+        default: false
+      pr_number:
+        type: number
+        required: true
+
+jobs:
+  merge-test:
+    name: Test with${{ inputs.use_github_app  && '' || 'out' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      # GH CLI authentication
+      - name: Create GitHub App token
+        id: app-token
+        if: ${{ inputs.use_github_app }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: 1035319
+          private-key: ${{ secrets.TEST_APP_PRIVATE_KEY }}
+
+      - name: GH CLI login
+        run: |
+          if [ "${{ steps.app-token.conclusion }}" != "skipped" ]; then
+            echo "Using custom GitHub App for authentication..."
+            gh auth login --hostname github.com --with-token <<< "${{ steps.app-token.outputs.token }}"
+          else
+            echo "Using GITHUB_TOKEN for authentication..."
+            gh auth login --hostname github.com --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+          fi
+
+      # Checkout the repository
+      - name: Checkout
+        uses: actions/checkout@v4.2.1
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.conclusion != 'skipped' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      - name: Fast Forward Branch
+        run: |
+          BASE_REF=$(gh pr view ${{ inputs.pr_number }} --json 'baseRefName' | jq -r '.baseRefName')
+          HEAD_REF=$(gh pr view ${{ inputs.pr_number }} --json 'headRefName' | jq -r '.headRefName')
+
+          git checkout $BASE_REF
+          if git merge origin/$HEAD_REF --ff-only
+          then
+            git push
+            gh pr comment ${{ inputs.pr_number }} --body '🚀 Success! Fast forwarded `$BASE_REF` to `$HEAD_REF`'
+          else
+            gh pr comment ${{ inputs.pr_number }} --body '😬 Failed! Cannot fast forward `$BASE_REF` to `$HEAD_REF`'
+            exit 1
+          fi

@@ -3,6 +3,11 @@ name: "Perform Release on Checkbox Tick"
 on:
   issue_comment:
     types: edited
+  workflow_call:
+    secrets:
+      access-token:
+        description: "A custom token"
+        required: false
 
 jobs:
   listen-for-release-comment:
