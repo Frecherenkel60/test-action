@@ -1,0 +1,37 @@
+name: "Test Custom Array"
+on:
+  workflow_dispatch:
+    inputs:
+      single_element:
+        default: false
+        type: boolean
+
+jobs:
+  merge-test:
+    name: Test custom array to GITHUB_OUTPUT
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set environment array
+        id: set-env-array
+        run: |
+          ENVIRONMENTS="[]"
+
+          if [ "${{ inputs.single_element }}" == "false" ]; then
+          ENVIRONMENTS="\"release-env1\",\"release-env2\""
+          else
+          ENVIRONMENTS="\"release-env3\""
+          fi
+
+          echo "environments=$ENVIRONMENTS" >> $GITHUB_OUTPUT
+
+      - name: Iterate over environments
+        run: |
+          # Read the environments from the previous step's output
+          IFS=',' read -r -a environments <<< "${{ steps.set-env-array.outputs.environments }}"
+
+          # Iterate over each environment and perform actions
+          for env in "${environments[@]}"; do
+            echo "Processing environment: $env"
+            # Add any other commands you need to perform per environment here
+          done
